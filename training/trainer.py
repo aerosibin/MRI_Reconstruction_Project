@@ -12,7 +12,7 @@ def train():
 
     # Dataset
     dataset = MRIDataset("data/processed/train")
-    loader = DataLoader(dataset, batch_size=2, shuffle=True)
+    loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
     # Model
     model = UNet().to(device)
@@ -21,7 +21,7 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Training loop
-    epochs = 5
+    epochs = 10
 
     for epoch in range(epochs):
         model.train()
