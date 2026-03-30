@@ -20,11 +20,7 @@ def ssim_loss(pred, target):
     ssim_total = 0
 
     for i in range(pred.shape[0]):
-        ssim_val = ssim(
-            target[i, 0],
-            pred[i, 0],
-            data_range=1.0
-        )
+        ssim_val = ssim(target[i, 0], pred[i, 0], data_range=1.0)
         ssim_total += ssim_val
 
     return 1 - (ssim_total / pred.shape[0])

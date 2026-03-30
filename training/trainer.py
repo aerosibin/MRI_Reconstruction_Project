@@ -7,7 +7,6 @@ from tqdm import tqdm
 
 
 def train():
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Dataset
@@ -45,10 +44,13 @@ def train():
 
             total_loss += loss.item()
 
-            loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
+            loop.set_description(f"Epoch [{epoch + 1}/{epochs}]")
             loop.set_postfix(loss=loss.item())
 
-        print(f"Epoch {epoch+1} Loss: {total_loss/len(loader)}")
+        print(f"Epoch {epoch + 1} Loss: {total_loss / len(loader)}")
 
     # Save model
+    import os
+
+    os.makedirs("outputs", exist_ok=True)
     torch.save(model.state_dict(), "outputs/model.pth")
