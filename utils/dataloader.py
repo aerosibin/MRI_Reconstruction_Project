@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+
 # =========================
 # Helper: Create Mask
 # =========================
@@ -37,12 +38,20 @@ class MRIDataset(Dataset):
     def __init__(self, root_dir):
         self.image_paths = []
 
-        # Traverse folders
-        for class_name in os.listdir(root_dir):
-            class_path = os.path.join(root_dir, class_name)
-
-            for img_name in os.listdir(class_path):
-                self.image_paths.append(os.path.join(class_path, img_name))
+        # Traverse folders or files. Support two structures:
+        # 1) root_dir/class_name/*.png (class subfolders)
+        # 2) root_dir/*.png (images directly)
+        entries = sorted(os.listdir(root_dir))
+        for name in entries:
+            path = os.path.join(root_dir, name)
+            if os.path.isdir(path):
+                for img_name in sorted(os.listdir(path)):
+                    img_path = os.path.join(path, img_name)
+                    if os.path.isfile(img_path):
+                        self.image_paths.append(img_path)
+            elif os.path.isfile(path):
+                # root_dir contains images directly
+                self.image_paths.append(path)
 
     def __len__(self):
         return len(self.image_paths)

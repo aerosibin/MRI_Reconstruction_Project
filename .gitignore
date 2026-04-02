@@ -8,12 +8,12 @@ venv/
 # Data (VERY IMPORTANT - don't upload dataset)
 data/
 
-# Outputs
-outputs/
+# Keep the trained checkpoint local
+model.pth
 
 # VS Code
 .vscode/
 
 # OS files
 .DS_Store
-Thumbs.db
+Thumbs.dbmodel.pth
