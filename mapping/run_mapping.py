@@ -48,6 +48,34 @@ def main():
     parser.add_argument(
         "--out", type=str, default="outputs/mapping", help="output folder"
     )
+    parser.add_argument(
+        "--n-workers",
+        type=int,
+        default=None,
+        help="number of worker processes for parallel T1 fitting (default: auto)",
+    )
+    parser.add_argument(
+        "--use-bloch",
+        action="store_true",
+        help="use Bloch RK4 forward model for T1 fitting (more accurate, slower)",
+    )
+    parser.add_argument(
+        "--steps-per-ms",
+        type=float,
+        default=1.0,
+        help="integration steps per unit TI for Bloch RK4 (higher = more accurate, slower)",
+    )
+    parser.add_argument(
+        "--inversion-eff",
+        type=float,
+        default=1.0,
+        help="inversion efficiency used by Bloch simulation (0-1)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print progress and timing information",
+    )
     args = parser.parse_args()
 
     img = cv2.imread(args.img, cv2.IMREAD_GRAYSCALE).astype("float32") / 255.0
@@ -74,7 +102,23 @@ def main():
     M0_map_t1 = 0.9 * np.exp(-r)
     TIs = np.array([50, 200, 500, 900, 1500], dtype=float)
     stack_t1 = synthesize_t1_ir_stack(img, T1_map, M0_map_t1, TIs)
-    M0_fit_t1, T1_fit = fit_t1_ir(TIs, stack_t1)
+    if args.verbose:
+        print(
+            f"Fitting T1 maps (use_bloch={args.use_bloch}) with n_workers={args.n_workers} chunk_size default"
+        )
+    M0_fit_t1, T1_fit = fit_t1_ir(
+        TIs,
+        stack_t1,
+        mask=None,
+        bounds=(1, 5000),
+        n_workers=args.n_workers,
+        use_bloch=args.use_bloch,
+        steps_per_ms=args.steps_per_ms,
+        inversion_eff=args.inversion_eff,
+        verbose=args.verbose,
+    )
+    if args.verbose:
+        print("Finished fitting T1 maps")
 
     np.save(os.path.join(args.out, "T1_map.npy"), T1_fit)
     np.save(os.path.join(args.out, "M0_map_t1.npy"), M0_fit_t1)
