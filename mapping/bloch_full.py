@@ -63,3 +63,41 @@ def simulate_bloch_sequence(time_axis, events, M0=1.0, T1=1000.0, T2=100.0, df=0
     B1y = np.zeros_like(time_axis, dtype=float)
     M = simulate_bloch_timecourse(time_axis, B1x, B1y, df=df, T1=T1, T2=T2, M0=M0)
     return M
+
+
+def simulate_bloch_ir(TIs, M0, T1, T2=None, inversion_efficiency=1.0, steps_per_ms=1):
+    """Simulate inversion recovery using the existing timecourse simulator.
+
+    For each TI we simulate from t=0..TI starting from inverted Mz and return Mz(TI).
+    This is a simple wrapper to provide a compatible API for the fitter.
+    """
+    if T2 is None:
+        T2 = max(1e-3, T1 / 2.0)
+    TIs = np.asarray(TIs, dtype=float)
+    out = np.zeros((len(TIs),), dtype=float)
+    for idx, TI in enumerate(TIs):
+        if TI <= 0:
+            out[idx] = -inversion_efficiency * M0
+            continue
+        # build time axis with steps proportional to TI
+        n_steps = max(2, int(abs(TI) * steps_per_ms))
+        time_axis = np.linspace(0.0, TI, n_steps + 1)
+        # set M_init to post-inversion state
+        M_init = np.array([0.0, 0.0, -inversion_efficiency * M0], dtype=float)
+        M = simulate_bloch_timecourse(
+            time_axis,
+            np.zeros_like(time_axis),
+            np.zeros_like(time_axis),
+            df=0.0,
+            T1=T1,
+            T2=T2,
+            M0=M0,
+            M_init=M_init,
+        )
+        out[idx] = M[-1, 2]
+    return out
+
+
+def simulate_multi_echo(TEs, M0, T2, T1=None):
+    TEs = np.asarray(TEs, dtype=float)
+    return M0 * np.exp(-TEs / T2)
