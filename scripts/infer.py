@@ -17,6 +17,8 @@ from skimage.metrics import (
     peak_signal_noise_ratio as psnr_sk,
     structural_similarity as ssim_sk,
 )
+from utils.image_postproc import unsharp_mask
+from utils.fft import fft2c, ifft2c
 
 
 def load_checkpoint(path, model, device):
@@ -82,7 +84,22 @@ def run_on_folder(folder, model, device, out_dir, limit=None):
         y = y.to(device)
 
         with torch.no_grad():
-            pred = model(x)
+            # Test-time augmentation: original + hflip + vflip
+            preds = []
+            out = model(x)
+            preds.append(out)
+            # horizontal flip
+            x_h = torch.flip(x, dims=[3])
+            out_h = model(x_h)
+            out_h = torch.flip(out_h, dims=[3])
+            preds.append(out_h)
+            # vertical flip
+            x_v = torch.flip(x, dims=[2])
+            out_v = model(x_v)
+            out_v = torch.flip(out_v, dims=[2])
+            preds.append(out_v)
+            # average
+            pred = torch.mean(torch.stack(preds, dim=0), dim=0)
 
         # Convert tensors to numpy images in [0,1]
         pred_np = to_np(pred[:, 0, :, :])[0]
@@ -118,6 +135,31 @@ def run_on_folder(folder, model, device, out_dir, limit=None):
         cv2.imwrite(
             os.path.join(out_dir, f"{idx:04d}_pred.png"),
             (pred_img * 255).astype("uint8"),
+        )
+        # Data-consistency step (one iteration) in k-space to restore measured lines
+        # Build complex images from zero-filled input and model prediction
+        inp = to_np(x)[0]  # (2,H,W)
+        zf_complex = inp[0] + 1j * inp[1]
+        k_meas = fft2c(zf_complex)
+        mask = np.abs(k_meas) > 0
+
+        pred_complex = pred_img.astype(np.complex64)  # assume zero phase
+        k_pred = fft2c(pred_complex)
+        # combine measured k-space and predicted
+        k_comb = np.where(mask, k_meas, k_pred)
+        dc_img = np.abs(ifft2c(k_comb))
+        dc_img = np.clip(dc_img.real, 0.0, 1.0)
+
+        # sharpen the data-consistent image for presentation
+        pred_sharp = unsharp_mask(dc_img, kernel_size=3, sigma=0.8, strength=0.7)
+        cv2.imwrite(
+            os.path.join(out_dir, f"{idx:04d}_pred_sharp.png"),
+            (pred_sharp * 255).astype("uint8"),
+        )
+        # also save the DC-corrected prediction
+        cv2.imwrite(
+            os.path.join(out_dir, f"{idx:04d}_pred_dc.png"),
+            (dc_img * 255).astype("uint8"),
         )
 
     return records
