@@ -83,8 +83,10 @@ def main():
     X_test_gt = load_images(test_paths_gt, size=(args.size, args.size))
     X_test_recon = load_images(test_paths_recon, size=(args.size, args.size))
 
-    print("Training logistic regression baseline")
-    clf = LogisticRegression(max_iter=2000, multi_class="multinomial", solver="saga")
+    print("Training logistic regression baseline (with class_weight=balanced)")
+    clf = LogisticRegression(
+        max_iter=2000, multi_class="multinomial", solver="saga", class_weight="balanced"
+    )
     clf.fit(X_train, y_train)
 
     # Evaluate on GT
@@ -113,10 +115,27 @@ def main():
     # Save classification reports
     import json
 
+    # Save classification reports (they include per-class precision/recall/f1)
     with open(os.path.join(args.out, "report_gt.json"), "w") as f:
         json.dump(report_gt, f, indent=2)
     with open(os.path.join(args.out, "report_recon.json"), "w") as f:
         json.dump(report_recon, f, indent=2)
+
+    # Also save a compact summary with per-class F1 and support
+    summary = {"gt": {}, "recon": {}}
+    for cls in le.classes_:
+        if cls in report_gt:
+            summary["gt"][cls] = {
+                "f1": report_gt[cls]["f1-score"],
+                "support": report_gt[cls]["support"],
+            }
+        if cls in report_recon:
+            summary["recon"][cls] = {
+                "f1": report_recon[cls]["f1-score"],
+                "support": report_recon[cls]["support"],
+            }
+    with open(os.path.join(args.out, "report_summary.json"), "w") as f:
+        json.dump(summary, f, indent=2)
 
     # Save confusion matrices
     save_confusion(cm_gt, le.classes_, os.path.join(args.out, "confusion_gt.png"))
