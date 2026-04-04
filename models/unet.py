@@ -6,15 +6,22 @@ import torch.nn as nn
 # Double Conv Block
 # =========================
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout=0.0):
         super(DoubleConv, self).__init__()
 
-        self.block = nn.Sequential(
+        layers = [
             nn.Conv2d(in_channels, out_channels, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, 3, padding=1),
             nn.ReLU(inplace=True),
-        )
+        ]
+
+        # optional spatial dropout to regularize decoder
+        self.use_dropout = dropout > 0.0
+        if self.use_dropout:
+            layers.append(nn.Dropout2d(dropout))
+
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.block(x)
@@ -45,16 +52,17 @@ class UNet(nn.Module):
 
         # Decoder
         self.up4 = nn.ConvTranspose2d(1024, 512, 2, stride=2)
-        self.dec4 = DoubleConv(1024, 512)
+        # add dropout in decoder blocks to reduce overfitting
+        self.dec4 = DoubleConv(1024, 512, dropout=0.3)
 
         self.up3 = nn.ConvTranspose2d(512, 256, 2, stride=2)
-        self.dec3 = DoubleConv(512, 256)
+        self.dec3 = DoubleConv(512, 256, dropout=0.3)
 
         self.up2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
-        self.dec2 = DoubleConv(256, 128)
+        self.dec2 = DoubleConv(256, 128, dropout=0.3)
 
         self.up1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
-        self.dec1 = DoubleConv(128, 64)
+        self.dec1 = DoubleConv(128, 64, dropout=0.3)
 
         # Final Output
         self.final = nn.Conv2d(64, 1, kernel_size=1)
