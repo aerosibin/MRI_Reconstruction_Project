@@ -63,6 +63,27 @@ class MRIDataset(Dataset):
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         img = img / 255.0  # normalize
 
+        # --- Simple augmentations (light) ---
+        # Random flips
+        if np.random.rand() < 0.5:
+            img = np.fliplr(img)
+        if np.random.rand() < 0.5:
+            img = np.flipud(img)
+
+        # Small random rotation (-10 to 10 degrees)
+        angle = (np.random.rand() * 20.0) - 10.0
+        if abs(angle) > 0.5:
+            H, W = img.shape
+            M = cv2.getRotationMatrix2D((W / 2, H / 2), angle, 1.0)
+            img = cv2.warpAffine(
+                img, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT
+            )
+
+        # Intensity jitter
+        if np.random.rand() < 0.3:
+            jitter = 0.9 + 0.2 * (np.random.rand() - 0.5)
+            img = np.clip(img * jitter, 0.0, 1.0)
+
         # FFT → k-space
         kspace = np.fft.fft2(img)
         kspace = np.fft.fftshift(kspace)
