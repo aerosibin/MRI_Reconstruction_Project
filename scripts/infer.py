@@ -72,7 +72,8 @@ def _gather_sequence_paths(src):
 def run_on_folder(folder, model, device, out_dir, limit=None):
     # Use existing MRIDataset to build inputs from folder structure
     ds = MRIDataset(folder)
-    loader = DataLoader(ds, batch_size=1, shuffle=False)
+    pin_memory = True if device.type == "cuda" else False
+    loader = DataLoader(ds, batch_size=1, shuffle=False, pin_memory=pin_memory)
 
     records = []
 
@@ -86,16 +87,29 @@ def run_on_folder(folder, model, device, out_dir, limit=None):
         with torch.no_grad():
             # Test-time augmentation: original + hflip + vflip
             preds = []
-            out = model(x)
+            # optionally use autocast if on CUDA for faster inference
+            if device.type == "cuda":
+                with torch.cuda.amp.autocast():
+                    out = model(x)
+            else:
+                out = model(x)
             preds.append(out)
             # horizontal flip
             x_h = torch.flip(x, dims=[3])
-            out_h = model(x_h)
+            if device.type == "cuda":
+                with torch.cuda.amp.autocast():
+                    out_h = model(x_h)
+            else:
+                out_h = model(x_h)
             out_h = torch.flip(out_h, dims=[3])
             preds.append(out_h)
             # vertical flip
             x_v = torch.flip(x, dims=[2])
-            out_v = model(x_v)
+            if device.type == "cuda":
+                with torch.cuda.amp.autocast():
+                    out_v = model(x_v)
+            else:
+                out_v = model(x_v)
             out_v = torch.flip(out_v, dims=[2])
             preds.append(out_v)
             # average
@@ -183,6 +197,11 @@ def main():
     )
     parser.add_argument(
         "--device", type=str, default=None, help="device to run on, e.g. cpu or cuda"
+    )
+    parser.add_argument(
+        "--use-amp",
+        action="store_true",
+        help="use CUDA AMP for inference if running on cuda",
     )
     parser.add_argument(
         "--ckpt", type=str, default="model.pth", help="model checkpoint path"
