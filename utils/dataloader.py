@@ -84,6 +84,9 @@ class MRIDataset(Dataset):
             jitter = 0.9 + 0.2 * (np.random.rand() - 0.5)
             img = np.clip(img * jitter, 0.0, 1.0)
 
+        # Ensure contiguous array (fix negative-stride views from flips/rotations)
+        img = np.ascontiguousarray(img)
+
         # FFT → k-space
         kspace = np.fft.fft2(img)
         kspace = np.fft.fftshift(kspace)
