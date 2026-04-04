@@ -84,9 +84,8 @@ def main():
     X_test_recon = load_images(test_paths_recon, size=(args.size, args.size))
 
     print("Training logistic regression baseline (with class_weight=balanced)")
-    clf = LogisticRegression(
-        max_iter=2000, multi_class="multinomial", solver="saga", class_weight="balanced"
-    )
+    # Use minimal arguments for compatibility with older sklearn versions
+    clf = LogisticRegression(max_iter=2000, class_weight="balanced")
     clf.fit(X_train, y_train)
 
     # Evaluate on GT
