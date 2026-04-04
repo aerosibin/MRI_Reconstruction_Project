@@ -93,8 +93,9 @@ def train():
         if val_loss < best_val:
             best_val = val_loss
             no_improve = 0
-            torch.save(model.state_dict(), "outputs/model_best.pth")
-            print("Saved best model -> outputs/model_best.pth")
+            # Save best model at repository root (do not place model.pth under outputs/)
+            torch.save(model.state_dict(), "model_best.pth")
+            print("Saved best model -> model_best.pth")
         else:
             no_improve += 1
             print(f"No improvement for {no_improve} epochs")
@@ -102,5 +103,5 @@ def train():
                 print("Early stopping triggered")
                 break
 
-    # Also save final model (not best) for reproducibility
-    torch.save(model.state_dict(), "outputs/model_final.pth")
+    # Also save final model (not best) at repo root for reproducibility
+    torch.save(model.state_dict(), "model_final.pth")
