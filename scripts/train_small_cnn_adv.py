@@ -42,6 +42,8 @@ class ImageFolderDataset(Dataset):
         im = im.astype("float32") / 255.0
         if self.augment:
             im = self._augment(im)
+        # make contiguous to avoid negative-stride numpy arrays from flips
+        im = np.ascontiguousarray(im)
         x = im.reshape(1, self.size[0], self.size[1])
         y = self.labels[idx]
         return x, y
