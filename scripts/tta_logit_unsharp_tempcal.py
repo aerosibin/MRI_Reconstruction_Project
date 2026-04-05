@@ -81,13 +81,40 @@ def main():
             if f.lower().endswith((".png", ".jpg", ".jpeg")):
                 paths.append(os.path.join(root, f))
 
-    probs = predict_with_logit_averaging(
-        model, paths, size=(args.size, args.size), amount=args.amount, T=args.T
-    )
+    # compute logits and probs; save both so downstream tools can use raw logits if desired
+    all_logits = []
+    all_probs = []
+    for p in paths:
+        im = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
+        im = cv2.resize(im, (args.size, args.size), interpolation=cv2.INTER_AREA)
+        im = im.astype("float32") / 255.0
+        im = unsharp_laplacian(im, amount=args.amount)
+        tts = tta_transforms(im)
+        logits_list = []
+        for t in tts:
+            x = t.ravel()[None, :]
+            logits = model.decision_function(x)
+            logits_list.append(logits)
+        stacked = np.vstack(logits_list)
+        mean_logits = np.mean(stacked, axis=0, keepdims=True)
+        scaled = mean_logits / float(args.T)
+        e = np.exp(scaled - np.max(scaled, axis=1, keepdims=True))
+        probs = e / e.sum(axis=1, keepdims=True)
+        all_logits.append(scaled.ravel())
+        all_probs.append(probs.ravel())
+
     os.makedirs(args.out, exist_ok=True)
     joblib.dump(
-        {"paths": paths, "probs": probs},
+        {
+            "paths": paths,
+            "probs": np.vstack(all_probs),
+            "logits": np.vstack(all_logits),
+        },
         os.path.join(args.out, "tta_logit_probs.joblib"),
+    )
+    joblib.dump(
+        {"paths": paths, "logits": np.vstack(all_logits)},
+        os.path.join(args.out, "tta_logit_logits.joblib"),
     )
 
 
