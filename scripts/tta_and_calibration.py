@@ -41,22 +41,31 @@ def predict_with_tta(joblib_path, image_paths, size=(64, 64)):
         im = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
         im = cv2.resize(im, size, interpolation=cv2.INTER_AREA)
         tts = tta_transforms(im)
-        # obtain ensemble average across transforms and classifiers
-        probs_accum = None
+        # obtain robust prediction by taking median across transforms and classifiers
+        probs_list = []
         for t in tts:
             x = t.ravel()[None, :]
-            probs_t = []
             for clf in clfs:
-                s = clf.decision_function(x)
+                try:
+                    s = clf.decision_function(x)
+                except Exception:
+                    # fallback for classifiers without decision_function
+                    s = clf._decision_function(x)
                 e = np.exp(s - np.max(s, axis=1, keepdims=True))
-                probs_t.append(e / e.sum(axis=1, keepdims=True))
-            probs_t = np.mean(probs_t, axis=0)
-            if probs_accum is None:
-                probs_accum = probs_t
-            else:
-                probs_accum += probs_t
-        probs_accum /= len(tts)
-        X.append(probs_accum.ravel())
+                prob = e / e.sum(axis=1, keepdims=True)
+                probs_list.append(prob.ravel())
+        # stack -> shape (n_transforms * n_classifiers, n_classes)
+        stacked = np.vstack(probs_list)
+        # use nanmedian to ignore any NaNs, then ensure non-negative and normalize
+        med = np.nanmedian(stacked, axis=0)
+        med = np.nan_to_num(med, nan=0.0, posinf=0.0, neginf=0.0)
+        s = med.sum()
+        if s <= 0:
+            # fallback to uniform if degenerate
+            med = np.ones_like(med) / med.size
+        else:
+            med = med / s
+        X.append(med)
     return np.vstack(X)
 
 
