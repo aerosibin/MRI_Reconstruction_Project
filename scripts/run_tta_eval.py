@@ -106,7 +106,15 @@ def main():
         meta = joblib.load(meta_path)
         classes = list(meta["classes"])
         # lazy torch wrapper
-        from scripts.model_wrapper import TorchWrapper
+        # importing via relative path to run as a script
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "model_wrapper", os.path.join(os.path.dirname(__file__), "model_wrapper.py")
+        )
+        mw = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mw)
+        TorchWrapper = mw.TorchWrapper
 
         clfs = [TorchWrapper(args.model_joblib, classes, device="cpu")]
 
