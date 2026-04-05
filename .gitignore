@@ -14,7 +14,6 @@ model.pth
 # Also ignore other local checkpoints and large outputs
 model_recon_final.pth
 *.pth
-outputs/
 
 # VS Code
 .vscode/
