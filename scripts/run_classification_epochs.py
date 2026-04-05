@@ -14,6 +14,7 @@ from sklearn.metrics import (
 import json
 import matplotlib.pyplot as plt
 import csv
+import joblib
 
 
 def load_image_paths(root):
@@ -304,6 +305,16 @@ def main():
     # Save history
     with open(os.path.join(args.out, "training_history.json"), "w") as f:
         json.dump(history, f, indent=2)
+
+    # Save trained ensemble and label encoder for later use (TTA, calibration, explainability)
+    try:
+        os.makedirs(args.out, exist_ok=True)
+        joblib.dump(
+            {"clfs": clfs, "label_encoder": le},
+            os.path.join(args.out, "clfs_ensemble.joblib"),
+        )
+    except Exception:
+        print("Warning: failed to save ensemble joblib")
 
     # Save plots
     xs = history["epoch"]
