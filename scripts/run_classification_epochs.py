@@ -73,8 +73,9 @@ def softmax(x):
 
 def save_plot(xs, ys, xlabel, ylabel, out_path, legends=None):
     plt.figure()
+    # Always draw markers so single-epoch plots are visible (single point)
     for y, label in zip(ys, legends) if legends is not None else [(ys, None)]:
-        plt.plot(xs, y, label=label)
+        plt.plot(xs, y, marker="o", linestyle="-", label=label)
     if legends:
         plt.legend()
     plt.xlabel(xlabel)
