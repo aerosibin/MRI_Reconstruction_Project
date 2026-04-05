@@ -1,3 +1,0 @@
-N=50
-PSNR mean=30.408 std=2.175
-SSIM mean=0.8776 std=0.0385
