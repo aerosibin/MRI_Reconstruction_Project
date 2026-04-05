@@ -95,10 +95,35 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
 
-    data = joblib.load(args.model_joblib)
-    clfs = data["clfs"]
-    le = data["label_encoder"]
-    classes = list(le.classes_)
+    # Support either a joblib ensemble OR a torch .pth + meta joblib
+    if args.model_joblib.endswith(".pth"):
+        # expect a meta joblib next to the pth with suffix _meta.joblib
+        meta_path = args.model_joblib.replace(".pth", "_meta.joblib")
+        if not os.path.exists(meta_path):
+            raise FileNotFoundError(
+                f"Meta joblib not found for {args.model_joblib}; expected {meta_path}"
+            )
+        meta = joblib.load(meta_path)
+        classes = list(meta["classes"])
+        # lazy torch wrapper
+        from scripts.model_wrapper import TorchWrapper
+
+        clfs = [TorchWrapper(args.model_joblib, classes, device="cpu")]
+
+        # minimal label encoder-like object
+        class DummyLE:
+            def __init__(self, classes):
+                self.classes_ = list(classes)
+
+            def transform(self, labels):
+                return [self.classes_.index(l) for l in labels]
+
+        le = DummyLE(classes)
+    else:
+        data = joblib.load(args.model_joblib)
+        clfs = data["clfs"]
+        le = data["label_encoder"]
+        classes = list(le.classes_)
 
     print("Gathering train paths for calibration...")
     train_paths, train_labels = gather_paths_labels(args.train)
