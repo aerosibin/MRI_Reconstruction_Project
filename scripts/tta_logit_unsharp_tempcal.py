@@ -5,7 +5,10 @@ import joblib
 from scipy.ndimage import laplace
 
 
-def tta_transforms(im):
+def tta_transforms(im, dual_view=False):
+    # conservative dual-view: original + horizontal flip only
+    if dual_view:
+        return [im, np.fliplr(im)]
     outs = [im]
     outs.append(np.fliplr(im))
     outs.append(np.flipud(im))
@@ -25,7 +28,9 @@ def unsharp_laplacian(im, amount=1.0):
     return enhanced
 
 
-def predict_with_logit_averaging(model, image_paths, size=(64, 64), amount=1.0, T=1.0):
+def predict_with_logit_averaging(
+    model, image_paths, size=(64, 64), amount=1.0, T=1.0, dual_view=False
+):
     # model: a wrapper with decision_function
     all_probs = []
     for p in image_paths:
@@ -34,7 +39,7 @@ def predict_with_logit_averaging(model, image_paths, size=(64, 64), amount=1.0, 
         im = im.astype("float32") / 255.0
         # apply unsharp laplacian to refocus
         im = unsharp_laplacian(im, amount=amount)
-        tts = tta_transforms(im)
+        tts = tta_transforms(im, dual_view=dual_view)
         logits_list = []
         for t in tts:
             x = t.ravel()[None, :]
@@ -59,8 +64,13 @@ def main():
     parser.add_argument("--model-joblib", required=True)
     parser.add_argument("--images", required=True)
     parser.add_argument("--out", default="outputs/analysis")
-    parser.add_argument("--amount", type=float, default=1.0)
-    parser.add_argument("--T", type=float, default=1.0)
+    parser.add_argument("--amount", type=float, default=4.0)
+    parser.add_argument("--T", type=float, default=1.3)
+    parser.add_argument(
+        "--dual-view",
+        action="store_true",
+        help="Use only original and horizontal flip transforms",
+    )
     parser.add_argument("--size", type=int, default=64)
     args = parser.parse_args()
 
